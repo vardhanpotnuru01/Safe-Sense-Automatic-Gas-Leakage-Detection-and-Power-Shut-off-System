@@ -1,36 +1,83 @@
-# Safe-Sense-Automatic-Gas-Leakage-Detection-and-Power-Shut-off-System
-An Arduino-based gas leakage detection system using an MQ-6 sensor, GSM module, relay, buzzer, and LED for real-time gas detection, automatic power shut-off, and SMS alerts.
+#include <SoftwareSerial.h>
 
-# Safe Sense – Automatic Gas Leakage Detection System
+SoftwareSerial gsm(7, 8);      // RX, TX
 
-## Overview
-Safe Sense is an embedded safety system that detects LPG gas leakage using an MQ-6 sensor. When gas concentration exceeds a predefined threshold, the system activates an alarm, sends an SMS notification through a GSM module, and automatically disconnects the power supply using a relay to prevent electrical hazards.
+#define GAS_SENSOR A0
+#define BUZZER 3
+#define LED 4
+#define RELAY 5
 
-## Features
-- LPG gas leak detection
-- Automatic power shut-off
-- SMS notification
-- Buzzer and LED alert
-- Low-cost and reliable design
+int gasValue = 0;
+int threshold = 400;
+int smsSent = 0;
 
-## Components
-- Arduino Nano
-- MQ-6 Gas Sensor
-- GSM Module
-- 5V Relay
-- Buzzer
-- LED
-- Resistors
-- 9V Battery
+void setup()
+{
+    Serial.begin(9600);
+    gsm.begin(9600);
 
-## Applications
-- Homes
-- Hotels
-- Industries
-- Commercial buildings
+    pinMode(GAS_SENSOR, INPUT);
+    pinMode(BUZZER, OUTPUT);
+    pinMode(LED, OUTPUT);
+    pinMode(RELAY, OUTPUT);
 
-## Technologies Used
-- Embedded C
-- Arduino IDE
-- Arduino Nano
-- GSM Communication
+    digitalWrite(BUZZER, LOW);
+    digitalWrite(LED, LOW);
+
+    // Relay ON (Power Supply Available)
+    digitalWrite(RELAY, HIGH);
+}
+
+void loop()
+{
+    gasValue = analogRead(GAS_SENSOR);
+
+    Serial.print("Gas Value: ");
+    Serial.println(gasValue);
+
+    if(gasValue > threshold)
+    {
+        digitalWrite(BUZZER, HIGH);
+        digitalWrite(LED, HIGH);
+
+        // Cut OFF Power Supply
+        digitalWrite(RELAY, LOW);
+
+        if(smsSent == 0)
+        {
+            SendSMS();
+            smsSent = 1;
+        }
+    }
+    else
+    {
+        digitalWrite(BUZZER, LOW);
+        digitalWrite(LED, LOW);
+
+        // Restore Power
+        digitalWrite(RELAY, HIGH);
+
+        smsSent = 0;
+    }
+
+    delay(500);
+}
+
+void SendSMS()
+{
+    gsm.println("AT");
+    delay(1000);
+
+    gsm.println("AT+CMGF=1");
+    delay(1000);
+
+    gsm.println("AT+CMGS=\"+91XXXXXXXXXX\"");
+    delay(1000);
+
+    gsm.print("ALERT! GAS LEAKAGE DETECTED.");
+    gsm.print(" POWER SUPPLY TURNED OFF.");
+
+    gsm.write(26);
+
+    delay(5000);
+}
